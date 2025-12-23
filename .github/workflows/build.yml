@@ -26,6 +26,24 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
     
+    - name: Retarget AsaApi to use available toolset
+      shell: pwsh
+      run: |
+        Write-Host "Retargeting AsaApi.vcxproj to use v143 toolset..."
+        $vcxproj = "AsaApi\AsaApi\AsaApi.vcxproj"
+        if (Test-Path $vcxproj) {
+          $content = Get-Content $vcxproj -Raw
+          # Replace any hardcoded toolset with v143
+          $content = $content -replace '<PlatformToolset>v\d+</PlatformToolset>', '<PlatformToolset>v143</PlatformToolset>'
+          # Remove specific MSVC version requirement if present
+          $content = $content -replace '<VCToolsVersion>[^<]+</VCToolsVersion>', ''
+          Set-Content $vcxproj -Value $content -NoNewline
+          Write-Host "✓ Successfully retargeted AsaApi.vcxproj"
+        } else {
+          Write-Host "✗ AsaApi.vcxproj not found at: $vcxproj"
+          exit 1
+        }
+    
     - name: Setup Visual Studio environment for vcpkg
       shell: pwsh
       run: |
@@ -89,8 +107,8 @@ jobs:
             Set-Content -Path $tripletFile -Value $lines
             Write-Host "Created triplet file: $tripletFile"
           }
-          # Build with the custom triplet
-          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VCToolsVersion=$toolsetVersion /p:VcpkgManifestTriplet=$customTriplet /p:VcpkgTriplet=$customTriplet
+          # Build with the custom triplet - no VCToolsVersion specified
+          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VcpkgManifestTriplet=$customTriplet /p:VcpkgTriplet=$customTriplet
         } else {
           Write-Host "No MSVC toolsets found, using standard triplet"
           msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VcpkgManifestTriplet=x64-windows-static-md /p:VcpkgTriplet=x64-windows-static-md
