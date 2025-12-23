@@ -24,7 +24,7 @@ jobs:
         path: AsaApi
     
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v2
     
     - name: Setup vcpkg
       run: |
@@ -35,9 +35,19 @@ jobs:
         ./vcpkg integrate install
     
     - name: Build AsaApi
+      shell: pwsh
       run: |
         cd AsaApi
-        msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64
+        # Find available MSVC toolset version
+        $toolsets = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+        if ($toolsets) {
+          $toolsetVersion = $toolsets | Sort-Object -Descending | Select-Object -First 1
+          Write-Host "Using MSVC toolset version: $toolsetVersion"
+          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VCToolsVersion=$toolsetVersion
+        } else {
+          Write-Host "No MSVC toolsets found, trying without VCToolsVersion override"
+          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
+        }
     
     - name: Build Plugin
       run: |
