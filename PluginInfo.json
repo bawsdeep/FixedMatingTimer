@@ -1,0 +1,15 @@
+{
+  "Name": "FixedMatingTimer",
+  "Author": "YourName",
+  "Description": "Replaces variable mating timers with a fixed interval",
+  "Version": "1.0.0",
+  "MinApiVersion": "3.0",
+  "FullDependency": [],
+  "Dependencies": [],
+  "Commands": [
+    "/setmatinginterval <hours>"
+  ],
+  "Permissions": {
+    "/setmatinginterval": "Admin"
+  }
+}
