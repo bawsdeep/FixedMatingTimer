@@ -23,10 +23,31 @@ jobs:
         repository: ArkServerApi/AsaApi
         path: AsaApi
     
-    - name: Add MSBuild to PATH
+    - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
     
+    - name: Setup Visual Studio environment for vcpkg
+      shell: pwsh
+      run: |
+        # Find and set Visual Studio path for vcpkg
+        $vsPaths = @(
+          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise",
+          "C:\Program Files\Microsoft Visual Studio\2022\Community",
+          "C:\Program Files\Microsoft Visual Studio\2022\Professional"
+        )
+        foreach ($vsPath in $vsPaths) {
+          if (Test-Path $vsPath) {
+            Write-Host "Found Visual Studio at: $vsPath"
+            $env:VCPKG_VISUAL_STUDIO_PATH = $vsPath
+            break
+          }
+        }
+        if (-not $env:VCPKG_VISUAL_STUDIO_PATH) {
+          Write-Host "Warning: Visual Studio path not found, vcpkg may have issues"
+        }
+    
     - name: Setup vcpkg
+      shell: pwsh
       run: |
         cd AsaApi/AsaApi
         git clone https://github.com/Microsoft/vcpkg.git
@@ -34,19 +55,62 @@ jobs:
         ./bootstrap-vcpkg.bat
         ./vcpkg integrate install
     
+    - name: Create custom triplet for available toolset
+      shell: pwsh
+      run: |
+        cd AsaApi/AsaApi
+        # Find available MSVC toolset version
+        $toolsets = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+        if (-not $toolsets) {
+          $toolsets = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+        }
+        if ($toolsets) {
+          $toolsetVersion = $toolsets | Sort-Object -Descending | Select-Object -First 1
+          Write-Host "Available MSVC toolset version: $toolsetVersion"
+          # Extract version for triplet (e.g., 14.40.33807 -> 1440)
+          $versionParts = $toolsetVersion -split '\.'
+          $tripletVersion = "$($versionParts[0])$($versionParts[1])"
+          $customTriplet = "x64-windows-$tripletVersion-static-md"
+          Write-Host "Creating custom triplet: $customTriplet"
+          # Create triplet directory if it doesn't exist
+          $tripletDir = "vcpkg\triplets\community"
+          if (-not (Test-Path $tripletDir)) {
+            New-Item -ItemType Directory -Path $tripletDir -Force | Out-Null
+          }
+          # Create a custom triplet file based on the standard one
+          $tripletFile = Join-Path $tripletDir "$customTriplet.cmake"
+          $baseTripletContent = @"
+set(VCPKG_TARGET_ARCHITECTURE x64)
+set(VCPKG_CRT_LINKAGE dynamic)
+set(VCPKG_LIBRARY_LINKAGE static)
+set(VCPKG_PLATFORM_TOOLSET v143)
+"@
+          Set-Content -Path $tripletFile -Value $baseTripletContent
+          Write-Host "Created triplet file: $tripletFile"
+          echo "VCPKG_TRIPLET=$customTriplet" >> $env:GITHUB_ENV
+        } else {
+          Write-Host "No MSVC toolsets found, using standard triplet"
+          echo "VCPKG_TRIPLET=x64-windows-static-md" >> $env:GITHUB_ENV
+        }
+    
     - name: Build AsaApi
       shell: pwsh
       run: |
         cd AsaApi
         # Find available MSVC toolset version
         $toolsets = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+        if (-not $toolsets) {
+          $toolsets = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+        }
         if ($toolsets) {
           $toolsetVersion = $toolsets | Sort-Object -Descending | Select-Object -First 1
           Write-Host "Using MSVC toolset version: $toolsetVersion"
-          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VCToolsVersion=$toolsetVersion
+          $env:VCPKG_DEFAULT_TRIPLET = $env:VCPKG_TRIPLET
+          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VCToolsVersion=$toolsetVersion /p:VcpkgManifestTriplet=$env:VCPKG_TRIPLET /p:VcpkgTriplet=$env:VCPKG_TRIPLET
         } else {
-          Write-Host "No MSVC toolsets found, trying without VCToolsVersion override"
-          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
+          Write-Host "No MSVC toolsets found, using standard triplet"
+          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static-md"
+          msbuild AsaApi.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:VcpkgManifestTriplet=x64-windows-static-md /p:VcpkgTriplet=x64-windows-static-md
         }
     
     - name: Build Plugin
