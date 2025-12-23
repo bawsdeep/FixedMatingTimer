@@ -5,7 +5,7 @@ project(FixedMatingTimer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ArkServerApi path
+# ArkServerApi path - defaults to ../AsaApi/AsaApi
 set(ARK_API_DIR "${CMAKE_SOURCE_DIR}/../AsaApi/AsaApi" CACHE PATH "Path to AsaApi")
 
 # Check if AsaApi exists
@@ -26,39 +26,39 @@ add_library(FixedMatingTimer SHARED
     FixedMatingTimer.cpp
 )
 
-# Windows/MSVC specific settings
+# Platform-specific settings
 if(MSVC)
-    target_compile_options(FixedMatingTimer PRIVATE
-        /W3
-        /MP
-        /permissive-
-    )
+    # Native Windows build with Visual Studio
+    message(STATUS "Building with MSVC")
     
+    # Add Windows-specific defines
     target_compile_definitions(FixedMatingTimer PRIVATE
         _WIN32
         _WINDOWS
-        UNICODE
-        _UNICODE
-        _CRT_SECURE_NO_WARNINGS
+        WIN32_LEAN_AND_MEAN
     )
     
-    # Link to AsaApi if the lib exists
-    if(EXISTS "${ARK_API_DIR}/AsaApi.lib")
-        target_link_libraries(FixedMatingTimer
-            "${ARK_API_DIR}/AsaApi.lib"
-        )
-    else()
-        message(WARNING "AsaApi.lib not found, plugin may have linking issues")
-    endif()
-endif()
-
-# MinGW cross-compilation settings
-if(MINGW OR CMAKE_CROSSCOMPILING)
+    # MSVC compiler flags
+    target_compile_options(FixedMatingTimer PRIVATE
+        /W3
+        /O2
+        /std:c++17
+    )
+    
+    # We don't link ArkApi.lib - it will be loaded at runtime by the game
+    # Just link against Windows system libraries
+    target_link_libraries(FixedMatingTimer
+        kernel32
+        user32
+    )
+    
+elseif(MINGW)
+    # Cross-compilation from Linux with MinGW
+    message(STATUS "Building with MinGW for cross-compilation")
+    
     target_compile_options(FixedMatingTimer PRIVATE
         -Wall
         -O2
-        -Wno-attributes
-        -Wno-unknown-pragmas
     )
     
     target_link_options(FixedMatingTimer PRIVATE
@@ -66,6 +66,7 @@ if(MINGW OR CMAKE_CROSSCOMPILING)
         -static-libstdc++
     )
     
+    # Link Windows system libraries
     target_link_libraries(FixedMatingTimer
         -lkernel32
         -luser32
@@ -77,8 +78,6 @@ set_target_properties(FixedMatingTimer PROPERTIES
     PREFIX ""
     OUTPUT_NAME "FixedMatingTimer"
     SUFFIX ".dll"
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
-    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
 )
 
 # Copy additional files to output directory
