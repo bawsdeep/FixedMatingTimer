@@ -1,104 +1,80 @@
-cmake_minimum_required(VERSION 3.15)
-project(FixedMatingTimer)
+name: Build ASA Plugin
 
-# C++ Standard
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-# ArkServerApi path - defaults to ../AsaApi/AsaApi
-set(ARK_API_DIR "${CMAKE_SOURCE_DIR}/../AsaApi/AsaApi" CACHE PATH "Path to AsaApi")
-
-# Check if AsaApi exists
-if(NOT EXISTS ${ARK_API_DIR})
-    message(FATAL_ERROR "AsaApi not found at ${ARK_API_DIR}. Please set ARK_API_DIR correctly.")
-endif()
-
-message(STATUS "Using AsaApi from: ${ARK_API_DIR}")
-
-# Include directories
-include_directories(
-    ${ARK_API_DIR}/Core/Public
-    ${ARK_API_DIR}/Core/Public/API
-)
-
-# Source files
-add_library(FixedMatingTimer SHARED
-    FixedMatingTimer.cpp
-)
-
-# Platform-specific settings
-if(MSVC)
-    # Native Windows build with Visual Studio
-    message(STATUS "Building with MSVC")
+jobs:
+  build:
+    runs-on: windows-latest
     
-    # Add Windows-specific defines
-    target_compile_definitions(FixedMatingTimer PRIVATE
-        _WIN32
-        _WINDOWS
-        WIN32_LEAN_AND_MEAN
-    )
+    steps:
+    - name: Checkout plugin repository
+      uses: actions/checkout@v4
+      with:
+        path: FixedMatingTimer
     
-    # MSVC compiler flags
-    target_compile_options(FixedMatingTimer PRIVATE
-        /W3
-        /O2
-        /std:c++17
-    )
+    - name: Checkout AsaApi (headers only)
+      uses: actions/checkout@v4
+      with:
+        repository: ArkServerApi/AsaApi
+        path: AsaApi
     
-    # We don't link ArkApi.lib - it will be loaded at runtime by the game
-    # Just link against Windows system libraries
-    target_link_libraries(FixedMatingTimer
-        kernel32
-        user32
-    )
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
     
-elseif(MINGW)
-    # Cross-compilation from Linux with MinGW
-    message(STATUS "Building with MinGW for cross-compilation")
+    - name: Setup CMake
+      uses: lukka/get-cmake@latest
     
-    target_compile_options(FixedMatingTimer PRIVATE
-        -Wall
-        -O2
-    )
+    - name: List AsaApi structure
+      run: |
+        echo "Checking AsaApi directory structure:"
+        dir AsaApi
+        dir AsaApi\AsaApi
+        dir AsaApi\AsaApi\Core
+        dir AsaApi\AsaApi\Core\Public
     
-    target_link_options(FixedMatingTimer PRIVATE
-        -static-libgcc
-        -static-libstdc++
-    )
+    - name: Configure Plugin
+      shell: cmd
+      run: |
+        cd FixedMatingTimer
+        mkdir build
+        cd build
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DARK_API_DIR="%GITHUB_WORKSPACE%\AsaApi\AsaApi"
     
-    # Link Windows system libraries
-    target_link_libraries(FixedMatingTimer
-        -lkernel32
-        -luser32
-    )
-endif()
-
-# Output configuration
-set_target_properties(FixedMatingTimer PROPERTIES
-    PREFIX ""
-    OUTPUT_NAME "FixedMatingTimer"
-    SUFFIX ".dll"
-)
-
-# Copy additional files to output directory
-add_custom_command(TARGET FixedMatingTimer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/PluginInfo.json
-        $<TARGET_FILE_DIR:FixedMatingTimer>/PluginInfo.json
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/config.json
-        $<TARGET_FILE_DIR:FixedMatingTimer>/config.json
-    COMMENT "Copying plugin metadata files"
-)
-
-# Installation
-install(TARGETS FixedMatingTimer
-    RUNTIME DESTINATION .
-    LIBRARY DESTINATION .
-)
-
-install(FILES
-    ${CMAKE_SOURCE_DIR}/PluginInfo.json
-    ${CMAKE_SOURCE_DIR}/config.json
-    DESTINATION .
-)
+    - name: Build Plugin
+      shell: cmd
+      run: |
+        cd FixedMatingTimer\build
+        cmake --build . --config Release
+    
+    - name: List build output
+      run: |
+        echo "Build output:"
+        dir FixedMatingTimer\build\Release
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: FixedMatingTimer-Plugin
+        path: |
+          FixedMatingTimer/build/Release/FixedMatingTimer.dll
+          FixedMatingTimer/PluginInfo.json
+          FixedMatingTimer/config.json
+        if-no-files-found: error
+    
+    - name: Create Release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          FixedMatingTimer/build/Release/FixedMatingTimer.dll
+          FixedMatingTimer/PluginInfo.json
+          FixedMatingTimer/config.json
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
