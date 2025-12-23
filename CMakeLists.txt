@@ -15,13 +15,22 @@ if(NOT EXISTS "${ARK_API_DIR}")
     message(FATAL_ERROR "ARK_API_DIR does not exist: ${ARK_API_DIR}")
 endif()
 
-# Add include directories
-include_directories("${ARK_API_DIR}/Core/Public")
-include_directories("${ARK_API_DIR}/Core/Public/API")
-include_directories("${ARK_API_DIR}/Core/Public/API/ARK")
-
 # Create the shared library (DLL)
 add_library(FixedMatingTimer SHARED FixedMatingTimer.cpp)
+
+# Add include directories
+# The key is to include Core/Public so that CoreTypes.h can be found
+# when files in subdirectories try to include it
+target_include_directories(FixedMatingTimer PRIVATE
+    "${ARK_API_DIR}/Core/Public"  # This should be first - CoreTypes.h is likely here
+    "${ARK_API_DIR}/Core/Public/API"
+    "${ARK_API_DIR}/Core/Public/API/ARK"
+    "${ARK_API_DIR}/Core/Public/API/UE"
+    "${ARK_API_DIR}/Core/Public/API/UE/GenericPlatform"
+    # Also include base directories as fallback
+    "${ARK_API_DIR}"
+    "${ARK_API_DIR}/Core"
+)
 
 # Set output name
 set_target_properties(FixedMatingTimer PROPERTIES
