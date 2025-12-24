@@ -94,6 +94,23 @@ jobs:
         }
         # Export downloads dir so vcpkg will use cached file
         "VCPKG_DOWNLOADS=$downloadsDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - name: Install vcpkg manifest dependencies (populate vcpkg_installed)
+      shell: pwsh
+      run: |
+        Write-Host "Installing vcpkg manifest dependencies to ensure vcpkg_installed exists"
+        $repoRoot = "${{ github.workspace }}\AsaApi\AsaApi"
+        $vcpkgExe = Join-Path $repoRoot "vcpkg\vcpkg.exe"
+        if (-not (Test-Path $vcpkgExe)) {
+          Write-Host "vcpkg.exe not found at $vcpkgExe; ensure vcpkg was bootstrapped"
+          exit 1
+        }
+        $installRoot = Join-Path $repoRoot "vcpkg_installed"
+        New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
+        $triplet = "x64-windows-static-md"
+        & $vcpkgExe install --manifest-root $repoRoot --x-install-root $installRoot --triplet $triplet --retries 5
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        "VCPKG_INSTALLED_DIR=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     
     - name: Build AsaApi
       shell: pwsh
