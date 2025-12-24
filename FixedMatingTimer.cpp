@@ -1,13 +1,13 @@
 #include <API/ARK/Ark.h>
 
+#pragma comment(lib, "ArkApi.lib")
+
 namespace FixedMatingTimer {
 // Configuration
-float g_FixedMatingInterval =
-    18.0f; // Fixed interval in hours (default 18 hours)
+float g_FixedMatingInterval = 18.0f; // Fixed interval in hours (default 18 hours)
 
 // Hook to override mating cooldown
-void Hook_APrimalDinoCharacter_SetMatingIntervalEnd(
-    APrimalDinoCharacter *_this) {
+void Hook_APrimalDinoCharacter_SetMatingIntervalEnd(APrimalDinoCharacter *_this) {
   if (_this) {
     // Get current time
     UWorld *world = ArkApi::GetApiUtils().GetWorld();
@@ -29,16 +29,13 @@ void Hook_APrimalDinoCharacter_SetMatingIntervalEnd(
 }
 
 // Hook the function that sets mating cooldown
-DECLARE_HOOK(APrimalDinoCharacter_SetMatingIntervalEnd, void,
-             APrimalDinoCharacter *);
-void Hook_APrimalDinoCharacter_SetMatingIntervalEnd_Implementation(
-    APrimalDinoCharacter *_this) {
+DECLARE_HOOK(APrimalDinoCharacter_SetMatingIntervalEnd, void, APrimalDinoCharacter *);
+void Hook_APrimalDinoCharacter_SetMatingIntervalEnd_Implementation(APrimalDinoCharacter *_this) {
   Hook_APrimalDinoCharacter_SetMatingIntervalEnd(_this);
 }
 
 // Admin command to change the fixed interval
-void SetMatingIntervalCommand(AShooterPlayerController *player,
-                              FString *message, int mode) {
+void SetMatingIntervalCommand(AShooterPlayerController *player, FString *message, int mode) {
   TArray<FString> parsed;
   message->ParseIntoArray(parsed, L" ", true);
 
@@ -58,13 +55,12 @@ void SetMatingIntervalCommand(AShooterPlayerController *player,
 
     g_FixedMatingInterval = newInterval;
 
-    FString response =
-        FString::Format("Fixed mating interval set to {} hours", newInterval);
+    FString response = FString::Format("Fixed mating interval set to {} hours", newInterval);
     ArkApi::GetApiUtils().SendChatMessage(player, "FixedMatingTimer", response);
 
-    Log::GetLog()->info(
-        "Admin {} changed mating interval to {} hours",
-        ArkApi::GetApiUtils().GetCharacterName(player).ToString(), newInterval);
+    Log::GetLog()->info("Admin {} changed mating interval to {} hours",
+                        ArkApi::GetApiUtils().GetCharacterName(player).ToString(), 
+                        newInterval);
   } catch (...) {
     ArkApi::GetApiUtils().SendChatMessage(player, "FixedMatingTimer",
                                           "Invalid number format");
@@ -83,12 +79,10 @@ void LoadConfig() {
       file >> config;
       g_FixedMatingInterval = config.value("FixedMatingIntervalHours", 18.0f);
 
-      Log::GetLog()->info(
-          "FixedMatingTimer: Loaded config - Interval: {} hours",
-          g_FixedMatingInterval);
+      Log::GetLog()->info("FixedMatingTimer: Loaded config - Interval: {} hours",
+                          g_FixedMatingInterval);
     } catch (const std::exception &e) {
-      Log::GetLog()->error("FixedMatingTimer: Failed to load config: {}",
-                           e.what());
+      Log::GetLog()->error("FixedMatingTimer: Failed to load config: {}", e.what());
     }
     file.close();
   } else {
@@ -116,8 +110,7 @@ void Load() {
       &APrimalDinoCharacter_SetMatingIntervalEnd_original);
 
   // Register admin command
-  ArkApi::GetCommands().AddChatCommand("/setmatinginterval",
-                                       &SetMatingIntervalCommand);
+  ArkApi::GetCommands().AddChatCommand("/setmatinginterval", &SetMatingIntervalCommand);
 
   Log::GetLog()->info("FixedMatingTimer: Fixed mating interval set to {} hours",
                       g_FixedMatingInterval);
@@ -134,6 +127,7 @@ void Unload() {
 }
 } // namespace FixedMatingTimer
 
+// Plugin exports - AsaApi will call these
 extern "C" __declspec(dllexport) void Plugin_Init() {
   FixedMatingTimer::Load();
 }
