@@ -28,6 +28,8 @@ include_directories(
     ${ARK_API_DIR}/Core/Public
     ${ARK_API_DIR}/Core/Public/API
     ${ARK_API_DIR}/Core/Public/API/UE
+    ${ARK_API_DIR}/ThirdParty/fmt/include
+
 )
 
 
