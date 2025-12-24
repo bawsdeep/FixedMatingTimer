@@ -30,6 +30,18 @@ jobs:
         Remove-Item -Path "${{ github.workspace }}\AsaApi_temp" -Recurse -Force
         Remove-Item -Path $dest -Force
         Write-Host "AsaApi release downloaded and extracted to ${GITHUB_WORKSPACE}\AsaApi"
+        # Verify a .vcxproj exists; if not, fallback to cloning the repo
+        $searchRoot = "${{ github.workspace }}\AsaApi"
+        $proj = Get-ChildItem -Path $searchRoot -Filter *.vcxproj -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $proj) {
+          Write-Host "No .vcxproj found in extracted release; falling back to cloning AsaApi repo"
+          # Remove possibly partial extraction
+          Remove-Item -Path $searchRoot -Recurse -Force -ErrorAction SilentlyContinue
+          git clone https://github.com/ArkServerApi/AsaApi.git "${{ github.workspace }}\AsaApi_temp"
+          Get-ChildItem -Path "${{ github.workspace }}\AsaApi_temp" | ForEach-Object { Move-Item -Path $_.FullName -Destination "${{ github.workspace }}\AsaApi" -Force }
+          Remove-Item -Path "${{ github.workspace }}\AsaApi_temp" -Recurse -Force
+          Write-Host "Cloned AsaApi into ${GITHUB_WORKSPACE}\AsaApi"
+        }
     
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
