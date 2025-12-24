@@ -28,9 +28,9 @@ include_directories(
     ${ARK_API_DIR}/Core/Public
     ${ARK_API_DIR}/Core/Public/API
     ${ARK_API_DIR}/Core/Public/API/UE
-    ${ARK_API_DIR}/ThirdParty/fmt/include
-
+    ${ARK_API_DIR}/vcpkg_installed/x64-windows/include
 )
+
 
 
 # Source files
