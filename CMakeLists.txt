@@ -27,13 +27,24 @@ endif()
 # ------------------------------------------------------------
 # Detect vcpkg include directory used by AsaApi (CRITICAL FIX)
 # ------------------------------------------------------------
-file(GLOB VCPKG_INCLUDE_DIRS
-    "${ARK_API_DIR}/vcpkg_installed/*/include"
-)
+set(_vcpkg_attempts "${ARK_API_DIR}/vcpkg_installed/*/include;${CMAKE_SOURCE_DIR}/../vcpkg_installed/*/include;${CMAKE_SOURCE_DIR}/vcpkg_installed/*/include")
+
+# Allow overriding where vcpkg was installed (useful in CI)
+if(DEFINED ENV{VCPKG_INSTALLED_DIR})
+    list(APPEND _vcpkg_attempts "$ENV{VCPKG_INSTALLED_DIR}/*/include")
+endif()
+
+set(VCPKG_INCLUDE_DIRS)
+foreach(_p IN LISTS _vcpkg_attempts)
+    file(GLOB _found "${_p}")
+    if(_found)
+        list(APPEND VCPKG_INCLUDE_DIRS ${_found})
+    endif()
+endforeach()
 
 if(NOT VCPKG_INCLUDE_DIRS)
     message(FATAL_ERROR
-        "Could not find vcpkg include directories in ${ARK_API_DIR}/vcpkg_installed"
+        "Could not find vcpkg include directories. Checked the following locations:\n  ${_vcpkg_attempts}\n\nIf you use a custom vcpkg install location set the environment variable VCPKG_INSTALLED_DIR to the directory that contains triplet subfolders (e.g. x64-windows)."
     )
 endif()
 
