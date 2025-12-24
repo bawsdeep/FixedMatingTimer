@@ -37,18 +37,19 @@ jobs:
     - name: Retarget AsaApi to use available toolset
       shell: pwsh
       run: |
-        Write-Host "Retargeting AsaApi.vcxproj to use v143 toolset..."
-        $vcxproj = "AsaApi\AsaApi\AsaApi.vcxproj"
-        if (Test-Path $vcxproj) {
+        Write-Host "Searching for .vcxproj under AsaApi to retarget to v143..."
+        $searchRoot = "${{ github.workspace }}\AsaApi"
+        $vcxprojFile = Get-ChildItem -Path $searchRoot -Filter *.vcxproj -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($vcxprojFile) {
+          $vcxproj = $vcxprojFile.FullName
+          Write-Host "Found project file: $vcxproj"
           $content = Get-Content $vcxproj -Raw
-          # Replace any hardcoded toolset with v143
           $content = $content -replace '<PlatformToolset>v\d+</PlatformToolset>', '<PlatformToolset>v143</PlatformToolset>'
-          # Remove specific MSVC version requirement if present
           $content = $content -replace '<VCToolsVersion>[^<]+</VCToolsVersion>', ''
           Set-Content $vcxproj -Value $content -NoNewline
-          Write-Host "✓ Successfully retargeted AsaApi.vcxproj"
+          Write-Host "✓ Successfully retargeted $vcxproj"
         } else {
-          Write-Host "✗ AsaApi.vcxproj not found at: $vcxproj"
+          Write-Host "✗ No .vcxproj found under: $searchRoot"
           exit 1
         }
     
