@@ -24,11 +24,12 @@ if(MSVC)
     message(STATUS "Found AsaApi library: ${ARK_API_LIB}")
 endif()
 
-# Include directories
 include_directories(
     ${ARK_API_DIR}/Core/Public
     ${ARK_API_DIR}/Core/Public/API
+    ${ARK_API_DIR}/Core/Public/API/UE
 )
+
 
 # Source files
 add_library(FixedMatingTimer SHARED
