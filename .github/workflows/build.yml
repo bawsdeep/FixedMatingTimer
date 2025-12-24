@@ -108,8 +108,20 @@ jobs:
         $installRoot = Join-Path $repoRoot "vcpkg_installed"
         New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
         $triplet = "x64-windows-static-md"
-        & $vcpkgExe install --manifest-root $repoRoot --x-install-root $installRoot --triplet $triplet --retries 5
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $downloadsRoot = $env:VCPKG_DOWNLOADS
+        if (-not $downloadsRoot) { $downloadsRoot = Join-Path $repoRoot "vcpkg_downloads" }
+
+        $maxAttempts = 5
+        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          Write-Host "vcpkg install attempt $attempt/$maxAttempts"
+          & $vcpkgExe install --x-install-root $installRoot --triplet $triplet --downloads-root $downloadsRoot
+          $code = $LASTEXITCODE
+          if ($code -eq 0) { break }
+          Write-Host "vcpkg install failed with exit code $code"
+          if ($attempt -eq $maxAttempts) { exit $code }
+          Start-Sleep -Seconds (5 * $attempt)
+        }
+
         "VCPKG_INSTALLED_DIR=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     
     - name: Build AsaApi
