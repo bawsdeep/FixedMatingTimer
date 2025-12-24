@@ -88,7 +88,7 @@ jobs:
     - name: Setup vcpkg
       shell: pwsh
       run: |
-        cd AsaApi/AsaApi
+        cd AsaApi
         git clone https://github.com/Microsoft/vcpkg.git
         cd vcpkg
         ./bootstrap-vcpkg.bat
@@ -97,7 +97,7 @@ jobs:
     - name: Pre-download vcpkg distfiles (zlib) 
       shell: pwsh
       run: |
-        $downloadsDir = "${{ github.workspace }}\AsaApi\AsaApi\vcpkg_downloads"
+        $downloadsDir = "${{ github.workspace }}\AsaApi\vcpkg_downloads"
         New-Item -ItemType Directory -Path $downloadsDir -Force | Out-Null
         $url = "https://github.com/madler/zlib/archive/v1.3.tar.gz"
         $out = Join-Path $downloadsDir "madler-zlib-v1.3.tar.gz"
@@ -120,7 +120,7 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "Installing vcpkg manifest dependencies to ensure vcpkg_installed exists"
-        $repoRoot = "${{ github.workspace }}\AsaApi\AsaApi"
+        $repoRoot = "${{ github.workspace }}\AsaApi"
         $vcpkgExe = Join-Path $repoRoot "vcpkg\vcpkg.exe"
         if (-not (Test-Path $vcpkgExe)) {
           Write-Host "vcpkg.exe not found at $vcpkgExe; ensure vcpkg was bootstrapped"
@@ -191,7 +191,7 @@ jobs:
         cd FixedMatingTimer
         mkdir build
         cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DARK_API_DIR="${{ github.workspace }}/AsaApi/AsaApi"
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DARK_API_DIR="${{ github.workspace }}/AsaApi"
         cmake --build . --config Release
     
     - name: Upload artifacts
