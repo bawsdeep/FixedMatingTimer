@@ -5,7 +5,7 @@ project(FixedMatingTimer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ArkServerApi path
+# AsaApi path
 set(ARK_API_DIR "${CMAKE_SOURCE_DIR}/../AsaApi/AsaApi" CACHE PATH "Path to AsaApi")
 
 # Check if AsaApi exists
@@ -24,14 +24,30 @@ if(MSVC)
     message(STATUS "Found AsaApi library: ${ARK_API_LIB}")
 endif()
 
+# ------------------------------------------------------------
+# Detect vcpkg include directory used by AsaApi (CRITICAL FIX)
+# ------------------------------------------------------------
+file(GLOB VCPKG_INCLUDE_DIRS
+    "${ARK_API_DIR}/vcpkg_installed/*/include"
+)
+
+if(NOT VCPKG_INCLUDE_DIRS)
+    message(FATAL_ERROR
+        "Could not find vcpkg include directories in ${ARK_API_DIR}/vcpkg_installed"
+    )
+endif()
+
+# Use the first detected triplet include directory
+list(GET VCPKG_INCLUDE_DIRS 0 VCPKG_INCLUDE_DIR)
+message(STATUS "Using vcpkg include dir: ${VCPKG_INCLUDE_DIR}")
+
+# Include directories
 include_directories(
     ${ARK_API_DIR}/Core/Public
     ${ARK_API_DIR}/Core/Public/API
     ${ARK_API_DIR}/Core/Public/API/UE
-    ${ARK_API_DIR}/vcpkg_installed/x64-windows/include
+    ${VCPKG_INCLUDE_DIR}
 )
-
-
 
 # Source files
 add_library(FixedMatingTimer SHARED
@@ -41,8 +57,7 @@ add_library(FixedMatingTimer SHARED
 # Platform-specific settings
 if(MSVC)
     message(STATUS "Building with MSVC")
-    
-    # Required Windows and UE defines
+
     target_compile_definitions(FixedMatingTimer PRIVATE
         _WIN64
         _WINDOWS
@@ -51,40 +66,19 @@ if(MSVC)
         UNICODE
         _UNICODE
     )
-    
-    # MSVC compiler flags
+
     target_compile_options(FixedMatingTimer PRIVATE
         /W3
         /O2
         /std:c++17
         /bigobj
         /permissive-
-        /Zc:inline
-        /Zc:strictStrings-
         /EHsc
     )
-    
-    # Link against AsaApi.lib
+
     target_link_libraries(FixedMatingTimer
         ${ARK_API_LIB}
     )
-    
-elseif(MINGW)
-    message(STATUS "Building with MinGW")
-    
-    target_compile_options(FixedMatingTimer PRIVATE
-        -Wall
-        -O2
-    )
-    
-    target_link_options(FixedMatingTimer PRIVATE
-        -static-libgcc
-        -static-libstdc++
-    )
-    
-    # For MinGW, we need to create an import library from AsaApi.dll
-    # This is more complex, so MSVC is recommended
-    message(WARNING "MinGW build may require additional setup for linking")
 endif()
 
 # Output configuration
@@ -95,7 +89,7 @@ set_target_properties(FixedMatingTimer PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
 )
 
-# Copy additional files to output directory
+# Copy plugin metadata after build
 add_custom_command(TARGET FixedMatingTimer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/PluginInfo.json
@@ -109,7 +103,6 @@ add_custom_command(TARGET FixedMatingTimer POST_BUILD
 # Installation
 install(TARGETS FixedMatingTimer
     RUNTIME DESTINATION .
-    LIBRARY DESTINATION .
 )
 
 install(FILES
