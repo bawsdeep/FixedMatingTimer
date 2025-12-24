@@ -72,6 +72,28 @@ jobs:
         cd vcpkg
         ./bootstrap-vcpkg.bat
         ./vcpkg integrate install
+
+    - name: Pre-download vcpkg distfiles (zlib) 
+      shell: pwsh
+      run: |
+        $downloadsDir = "${{ github.workspace }}\AsaApi\AsaApi\vcpkg_downloads"
+        New-Item -ItemType Directory -Path $downloadsDir -Force | Out-Null
+        $url = "https://github.com/madler/zlib/archive/v1.3.tar.gz"
+        $out = Join-Path $downloadsDir "madler-zlib-v1.3.tar.gz"
+        $max = 5
+        for ($i = 1; $i -le $max; $i++) {
+          try {
+            Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing -TimeoutSec 60
+            Write-Host "Downloaded $url to $out"
+            break
+          } catch {
+            Write-Host "Attempt $i failed: $($_.Exception.Message)"
+            if ($i -eq $max) { throw }
+            Start-Sleep -Seconds (5 * $i)
+          }
+        }
+        # Export downloads dir so vcpkg will use cached file
+        "VCPKG_DOWNLOADS=$downloadsDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     
     - name: Build AsaApi
       shell: pwsh
