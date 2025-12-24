@@ -17,11 +17,19 @@ jobs:
       with:
         path: FixedMatingTimer
     
-    - name: Checkout AsaApi
-      uses: actions/checkout@v4
-      with:
-        repository: ArkServerApi/AsaApi
-        path: AsaApi
+    - name: Download AsaApi release
+      shell: pwsh
+      run: |
+        Write-Host "Downloading AsaApi release zip..."
+        $url = 'https://github.com/ArkServerApi/AsaApi/releases/download/1.19/AsaApi_1.19.zip'
+        $dest = "${{ github.workspace }}\AsaApi.zip"
+        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing -TimeoutSec 120
+        New-Item -ItemType Directory -Path "${{ github.workspace }}\AsaApi" -Force | Out-Null
+        Expand-Archive -Path $dest -DestinationPath "${{ github.workspace }}\AsaApi_temp" -Force
+        Get-ChildItem -Path "${{ github.workspace }}\AsaApi_temp" | ForEach-Object { Move-Item -Path $_.FullName -Destination "${{ github.workspace }}\AsaApi" -Force }
+        Remove-Item -Path "${{ github.workspace }}\AsaApi_temp" -Recurse -Force
+        Remove-Item -Path $dest -Force
+        Write-Host "AsaApi release downloaded and extracted to ${GITHUB_WORKSPACE}\AsaApi"
     
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
